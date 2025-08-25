@@ -1,18 +1,111 @@
-USERNAME.github.io/
-  index.html                <-- homepage
-  preterite-jeopardy/
-    index.html              <-- game 1’s entry point
-    script.js
-    style.css
-  conjugation-platformer/
-    index.html              <-- game 2
-    game.js
-    assets/
-  falling-sand/
-    index.html              <-- game 3
-    sand.js
-    style.css
-  assets/
-    img/
-      preterite-thumb.png   <-- homepage images/thumbnails
-      platformer-thumb.png
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smitty's Spanish Game Hub</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    header {
+      text-align: center;
+      padding: 2rem;
+      background: #2c3e50;
+      color: white;
+    }
+    h1 { margin: 0; }
+    p { margin: .5rem 0 0; }
+
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      padding: 0 1rem;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      text-align: center;
+      padding: 1rem;
+      transition: transform 0.2s;
+    }
+    .card:hover { transform: scale(1.03); }
+    .card img {
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .card h3 {
+      margin: .75rem 0 .5rem;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: .5rem;
+      padding: .6rem 1rem;
+      background: #3498db;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    .btn:hover {
+      background: #217dbb;
+    }
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      padding: 1rem;
+      color: #777;
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Smitty’s Spanish Game Hub</h1>
+    <p>Click a game below to play!</p>
+  </header>
+
+  <main class="container">
+
+    <!-- Game 1 -->
+    <div class="card">
+      <img src="assets/img/preterite-thumb.png" alt="Preterite Jeopardy">
+      <h3>Preterite Jeopardy!</h3>
+      <p>Practice Spanish preterite tense in a fun Jeopardy format.</p>
+      <a class="btn" href="preterite-jeopardy/">Play</a>
+    </div>
+
+    <!-- Game 2 -->
+    <div class="card">
+      <img src="assets/img/platformer-thumb.png" alt="Conjugation Platformer">
+      <h3>Conjugation Platformer</h3>
+      <p>Jump and collect the correct verb conjugations.</p>
+      <a class="btn" href="conjugation-platformer/">Play</a>
+    </div>
+
+    <!-- Game 3 -->
+    <div class="card">
+      <img src="assets/img/falling-sand-thumb.png" alt="Falling Sand Game">
+      <h3>Falling Sand</h3>
+      <p>A sandbox game for fun breaks between studying.</p>
+      <a class="btn" href="falling-sand/">Play</a>
+    </div>
+
+  </main>
+
+  <footer>
+    © <span id="year"></span> Smitty | Powered by GitHub Pages
+  </footer>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

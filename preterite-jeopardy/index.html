@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Spanish Preterite Jeopardy!</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b3d91;
+      color: white;
+      text-align: center;
+    }
+    h1 {
+      margin: 20px;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+      max-width: 900px;
+      margin: auto;
+    }
+    .cell {
+      background: #1e90ff;
+      border: 2px solid #fff;
+      padding: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .cell.used {
+      background: #333;
+      cursor: default;
+    }
+    #question-box {
+      margin-top: 30px;
+      padding: 20px;
+      background: #222;
+      border-radius: 10px;
+      display: none;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>¡Jeopardy! – Pretérito en Español</h1>
+  <div id="board"></div>
+  <div id="question-box">
+    <h2 id="question"></h2>
+    <div id="answers"></div>
+    <p id="feedback"></p>
+    <button onclick="closeQuestion()">Continuar</button>
+  </div>
+
+  <script>
+    const categories = ["Fill-in-Blank", "Culture", "Multiple Choice", "Verbos Irregulares", "Story Time"];
+
+    const questions = {
+      "Fill-in-Blank": [
+        { q: "Yo ____ (comer) una pizza ayer.", a: "comí" },
+        { q: "Ellos ____ (vivir) en México por dos años.", a: "vivieron" },
+        { q: "Nosotros ____ (hablar) con la profesora esta mañana.", a: "hablamos" },
+        { q: "Tú ____ (escribir) una carta la semana pasada.", a: "escribiste" },
+        { q: "Ella ____ (beber) un café esta mañana.", a: "bebió" }
+      ],
+      "Culture": [
+        { q: "El Día de los Muertos se celebró el 2 de noviembre. ¿El verbo ‘celebrar’ en pretérito para ‘nosotros’?", a: "celebramos" },
+        { q: "En 1492, Colón ____ (llegar) a América.", a: "llegó" },
+        { q: "En 1810, México ____ (empezar) su guerra de independencia.", a: "empezó" },
+        { q: "Simón Bolívar ____ (nacer) en Venezuela.", a: "nació" },
+        { q: "Frida Kahlo ____ (morir) en 1954.", a: "murió" }
+      ],
+      "Multiple Choice": [
+        { q: "¿Cuál es la forma correcta de ‘hacer’ en pretérito (yo)?", a: "hice", options: ["hizo","hice","hizé","hicí"] },
+        { q: "Escoge la forma correcta: Ellos ____ (ir) al cine.", a: "fueron", options: ["fueron","iban","fuiste","fuimos"] },
+        { q: "Tú ____ (tener) mucha tarea ayer.", a: "tuviste", options: ["tenías","tuvo","tuviste","tuvimos"] },
+        { q: "Nosotros ____ (estar) en Madrid el verano pasado.", a: "estuvimos", options: ["estuvimos","estábamos","están","estuviste"] },
+        { q: "Ella ____ (decir) la verdad.", a: "dijo", options: ["dijó","dijo","deció","dijieron"] }
+      ],
+      "Verbos Irregulares": [
+        { q: "Conjuga ‘venir’ en pretérito (yo).", a: "vine" },
+        { q: "Conjuga ‘tener’ en pretérito (ellos).", a: "tuvieron" },
+        { q: "Conjuga ‘estar’ en pretérito (nosotros).", a: "estuvimos" },
+        { q: "Conjuga ‘dar’ en pretérito (ella).", a: "dio" },
+        { q: "Conjuga ‘traer’ en pretérito (tú).", a: "trajiste" }
+      ],
+      "Story Time": [
+        { q: "Ayer yo ____ (levantarse), ____ (desayunar) y ____ (salir) a la escuela.", a: "me levanté, desayuné, salí" },
+        { q: "Ellos ____ (viajar) a España y ____ (visitar) muchos museos.", a: "viajaron, visitaron" },
+        { q: "Nosotros ____ (ir) al restaurante y ____ (pedir) paella.", a: "fuimos, pedimos" },
+        { q: "Tú ____ (conocer) a una persona nueva y ____ (hablar) con ella.", a: "conociste, hablaste" },
+        { q: "Ella ____ (correr) en el parque y luego ____ (dormir) en su casa.", a: "corrió, durmió" }
+      ]
+    };
+
+    const board = document.getElementById("board");
+    const questionBox = document.getElementById("question-box");
+    const questionEl = document.getElementById("question");
+    const answersEl = document.getElementById("answers");
+    const feedback = document.getElementById("feedback");
+    let currentAnswer = "";
+
+    // Build board
+    categories.forEach(cat => {
+      const header = document.createElement("div");
+      header.className = "cell";
+      header.style.background = "#ffcc00";
+      header.innerText = cat;
+      board.appendChild(header);
+
+      for (let i = 0; i < 5; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.innerText = (i+1)*100;
+        cell.onclick = () => showQuestion(cat, i, cell);
+        board.appendChild(cell);
+      }
+    });
+
+    function showQuestion(category, index, cell) {
+      if (cell.classList.contains("used")) return;
+      const qObj = questions[category][index];
+      currentAnswer = qObj.a;
+      questionEl.innerText = qObj.q;
+      answersEl.innerHTML = "";
+
+      if (qObj.options) {
+        qObj.options.forEach(opt => {
+          const btn = document.createElement("button");
+          btn.innerText = opt;
+          btn.onclick = () => checkAnswer(opt);
+          answersEl.appendChild(btn);
+        });
+      } else {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "Escribe tu respuesta";
+        answersEl.appendChild(input);
+        const btn = document.createElement("button");
+        btn.innerText = "Enviar";
+        btn.onclick = () => checkAnswer(input.value.trim());
+        answersEl.appendChild(btn);
+      }
+
+      questionBox.style.display = "block";
+      cell.classList.add("used");
+    }
+
+    function checkAnswer(ans) {
+      if (ans.toLowerCase() === currentAnswer.toLowerCase()) {
+        feedback.innerText = "✅ Correcto!";
+      } else {
+        feedback.innerText = "❌ Incorrecto. Respuesta: " + currentAnswer;
+      }
+    }
+
+    function closeQuestion() {
+      questionBox.style.display = "none";
+      feedback.innerText = "";
+    }
+  </script>
+</body>
+</html>

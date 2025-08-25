@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>¡Jeopardy! – Pretérito en Español</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --blue:#1e90ff; --blue-dark:#0b3d91; --gold:#ffcc00; --board-max:1100px; }
+    *{ box-sizing:border-box }
+    body{
+      font-family: system-ui, Arial, sans-serif;
+      background: var(--blue-dark);
+      color:#fff; margin:0; padding:16px 12px 80px; text-align:center;
+    }
+    h1{ margin:6px 0 10px; font-size:1.8rem }
+    #top-bar{
+      max-width:var(--board-max); margin:0 auto 10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center;
+    }
+    .btn{ background:var(--gold); color:#111; border:none; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer; }
+    .btn.alt{ background:#2b2b2b; color:#fff; border:1px solid #666; }
+    .btn.warn{ background:#ff6b6b; color:#111; }
+    .btn.small{ padding:6px 10px; font-weight:600; }
+    .toggle-on{ outline:3px solid #6CFF7D; }
+
+    #board{
+      display:grid; grid-template-columns: repeat(5, 1fr);
+      gap:6px; max-width:var(--board-max); margin:0 auto; user-select:none;
+    }
+    .header{
+      background:var(--gold); color:#111; border:3px solid #fff; padding:12px 6px;
+      font-weight:900; font-size:1.05rem; text-transform:uppercase; min-height:72px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .cell{
+      background:var(--blue); border:3px solid #fff; padding:22px 6px; font-size:22px; font-weight:800;
+      cursor:pointer; min-height:96px; display:flex; align-items:center; justify-content:center;
+      transition: transform .06s ease-in-out;
+    }
+    .cell:hover{ transform: translateY(-1px); }
+    .cell.used{ background:#333; color:#bbb; cursor:default; transform:none; }
+    .cell.dd::after{
+      content:"★"; position:absolute; transform:translate(40px,-40px); font-size:18px;
+    }
+    .grid-wrap{ position:relative }
+
+    /* Question panel */
+    #question-box{
+      display:none; max-width:var(--board-max); margin:18px auto 0; background:#181818;
+      border:2px solid #fff; border-radius:12px; padding:18px; text-align:left;
+    }
+    #question-box h2{ margin:0 0 10px; font-size:1.25rem; line-height:1.35 }
+    #answers{ margin:10px 0 8px; display:flex; flex-wrap:wrap; gap:10px }
+    #answers input[type="text"]{
+      flex:1 1 280px; min-width:220px; padding:10px 12px; font-size:1rem;
+      border-radius:8px; border:1px solid #666; outline:none;
+    }
+    #feedback{ min-height:1.2em; margin:6px 0 12px; font-weight:700 }
+    .controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center }
+
+    /* Accent tools */
+    #accent-tools{ margin:8px 0 6px; display:none }
+    #accent-row{ margin-top:8px; display:none; gap:6px; flex-wrap:wrap }
+    .accent-btn{ background:#303030; color:#fff; border:1px solid #666; padding:6px 10px; border-radius:8px; font-size:1rem; cursor:pointer }
+
+    /* Scoreboard */
+    #scoreboard{
+      max-width:var(--board-max); margin:14px auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:8px;
+    }
+    .team{
+      background:#111; border:1px solid #666; border-radius:10px; padding:10px; text-align:left;
+    }
+    .team h3{ margin:0 0 6px; font-size:1rem }
+    .score{ font-size:1.3rem; font-weight:800; margin-right:8px }
+    .team .row{ display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+    .team input[type="text"]{ width:100%; padding:6px 8px; border-radius:8px; border:1px solid #555; background:#1b1b1b; color:#fff }
+
+    /* Select team for awarding points */
+    #award-row{ display:none; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px }
+    select{ padding:8px; border-radius:8px; background:#1b1b1b; color:#fff; border:1px solid #555 }
+
+    /* DD banner */
+    #dd-banner{ display:none; font-weight:800; color:#6CFF7D; margin:0 0 6px }
+
+    /* Footer mini note */
+    .note{ opacity:.7; font-size:.9rem; margin-top:8px }
+  </style>
+</head>
+<body>
+  <h1>¡Jeopardy! – Pretérito en Español</h1>
+
+  <div id="top-bar">
+    <button id="new-game" class="btn">🔄 Reset Game (new Qs)</button>
+    <button id="reset-scores" class="btn alt">🧮 Reset Scores</button>
+    <button id="toggle-dd" class="btn alt">⭐ Next Pick = Daily Double</button>
+    <span class="note">Consejo: usa “Acentos” cuando aparezca un campo de respuesta.</span>
+  </div>
+
+  <!-- Scoreboard -->
+  <div id="scoreboard"></div>
+  <div id="team-controls" style="max-width:1100px;margin:0 auto 10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <input id="new-team-name" type="text" placeholder="Nombre del equipo" style="padding:8px;border-radius:8px;border:1px solid #555;background:#1b1b1b;color:#fff">
+    <button id="add-team" class="btn small">➕ Añadir equipo</button>
+  </div>
+
+  <!-- Game Board -->
+  <div id="board"></div>
+
+  <!-- Question Box -->
+  <div id="question-box" aria-live="polite">
+    <div id="dd-banner">⭐ DAILY DOUBLE ⭐</div>
+    <h2 id="question"></h2>
+
+    <div id="answers"></div>
+
+    <!-- Accents tools only for typed answers -->
+    <div id="accent-tools">
+      <button id="toggle-accents" class="btn alt small" aria-expanded="false">Acentos</button>
+      <div id="accent-row" class="controls" role="group" aria-label="Insertar acentos"></div>
+    </div>
+
+    <!-- Award area (appears after answering) -->
+    <div id="award-row" class="controls">
+      <label for="award-team">Equipo:</label>
+      <select id="award-team"></select>
+      <button id="award-correct" class="btn small">✅ Correcto (sumar)</button>
+      <button id="award-wrong" class="btn small warn">❌ Incorrecto (restar)</button>
+    </div>
+
+    <p id="feedback"></p>
+
+    <div class="controls">
+      <button id="close-btn" class="btn">Continuar</button>
+    </div>
+  </div>
+
+  <script>
+    /**************
+     * GAME DATA  *
+     **************/
+    // A bank of categories (more than 5). Each has 6–8 prompts; we’ll sample 5 each game.
+    // All items focus on PRETÉRITO; NO "vosotros".
+    const BANK = {
+      "Fill-in-Blank": [
+        {q:"Yo ____ (comer) una pizza ayer.",a:"comí"},
+        {q:"Ellos ____ (vivir) en México por dos años.",a:"vivieron"},
+        {q:"Nosotros ____ (hablar) con la profesora esta mañana.",a:"hablamos"},
+        {q:"Tú ____ (escribir) una carta la semana pasada.",a:"escribiste"},
+        {q:"Ella ____ (beber) un café esta mañana.",a:"bebió"},
+        {q:"Anoche, yo ____ (ver) una película.",a:"vi"},
+        {q:"Mis padres ____ (llegar) tarde.",a:"llegaron"}
+      ],
+      "Irregulares": [
+        {q:"Conjuga ‘venir’ en pretérito (yo).",a:"vine"},
+        {q:"Conjuga ‘tener’ en pretérito (ellos).",a:"tuvieron"},
+        {q:"Conjuga ‘estar’ en pretérito (nosotros).",a:"estuvimos"},
+        {q:"Conjuga ‘dar’ en pretérito (ella).",a:"dio"},
+        {q:"Conjuga ‘traer’ en pretérito (tú).",a:"trajiste"},
+        {q:"Conjuga ‘hacer’ en pretérito (yo).",a:"hice"},
+        {q:"Conjuga ‘poder’ en pretérito (él).",a:"pudo"}
+      ],
+      "Multiple Choice": [
+        {q:"¿Cuál es la forma correcta de ‘hacer’ en pretérito (yo)?",a:"hice",options:["hizo","hice","hizé","hicí"]},
+        {q:"Escoge la forma correcta: Ellos ____ (ir) al cine.",a:"fueron",options:["fueron","iban","fuiste","fuimos"]},
+        {q:"Tú ____ (tener) mucha tarea ayer.",a:"tuviste",options:["tenías","tuvo","tuviste","tuvimos"]},
+        {q:"Nosotros ____ (estar) en Madrid el verano pasado.",a:"estuvimos",options:["estuvimos","estábamos","están","estuviste"]},
+        {q:"Ella ____ (decir) la verdad.",a:"dijo",options:["dijó","dijo","deció","dijieron"]},
+        {q:"Yo ____ (querer) ayudar, pero fue imposible.",a:"quise",options:["quise","quería","quiso","quiero"]},
+        {q:"Él ____ (poner) el libro en la mesa.",a:"puso",options:["ponió","puso","puse","ponió"]},
+      ],
+      "Cultura Hispana": [
+        {q:"En 1492, Colón ____ (llegar) a América.",a:"llegó"},
+        {q:"En 1810, México ____ (empezar) su guerra de independencia.",a:"empezó"},
+        {q:"Simón Bolívar ____ (nacer) en Venezuela.",a:"nació"},
+        {q:"Frida Kahlo ____ (morir) en 1954.",a:"murió"},
+        {q:"Pablo Picasso ____ (pintar) ‘Guernica’ en 1937.",a:"pintó"},
+        {q:"En 1992, Barcelona ____ (ser) sede de los Juegos Olímpicos.",a:"fue"},
+      ],
+      "Story Time": [
+        {q:"Ayer yo ____ (levantarse), ____ (desayunar) y ____ (salir) a la escuela.",a:"me levanté, desayuné, salí"},
+        {q:"Ellos ____ (viajar) a España y ____ (visitar) muchos museos.",a:"viajaron, visitaron"},
+        {q:"Nosotros ____ (ir) al restaurante y ____ (pedir) paella.",a:"fuimos, pedimos"},
+        {q:"Tú ____ (conocer) a una persona nueva y ____ (hablar) con ella.",a:"conociste, hablaste"},
+        {q:"Ella ____ (correr) en el parque y luego ____ (dormir) en su casa.",a:"corrió, durmió"},
+        {q:"Primero yo ____ (hacer) la tarea, luego ____ (jugar) videojuegos.",a:"hice, jugué"},
+      ],
+      "Acciones Cotidianas": [
+        {q:"Anoche, nosotros ____ (cocinar) pasta y ____ (lavar) los platos.",a:"cocinamos, lavamos"},
+        {q:"Mi amigo ____ (comprar) un teléfono nuevo ayer.",a:"compró"},
+        {q:"Yo ____ (buscar) mis llaves y por fin ____ (encontrar) la mochila.",a:"busqué, encontré"},
+        {q:"Ella ____ (llegar) tarde y ____ (perder) el autobús.",a:"llegó, perdió"},
+        {q:"Ustedes ____ (aprender) mucho y ____ (sacar) buenas notas.",a:"aprendieron, sacaron"}
+      ],
+      "Viajes": [
+        {q:"El verano pasado, nosotros ____ (volar) a Madrid y ____ (alquilar) un piso.",a:"volamos, alquilamos"},
+        {q:"Yo ____ (hacer) la maleta y ____ (salir) temprano.",a:"hice, salí"},
+        {q:"Ellos ____ (llegar) tarde y ____ (perder) la reserva.",a:"llegaron, perdieron"},
+        {q:"Mi hermana ____ (conseguir) un mapa y ____ (andar) por la ciudad.",a:"consiguió, anduvo"},
+        {q:"Tú ____ (tener) que mostrar el pasaporte en la entrada.",a:"tuviste"}
+      ],
+      "Comida": [
+        {q:"Ayer yo ____ (freír) huevos y ____ (servir) café.",a:"freí, serví"},
+        {q:"Nosotros ____ (pedir) tacos y ____ (pagar) la cuenta.",a:"pedimos, pagamos"},
+        {q:"El chef ____ (recomendar) la sopa; yo ____ (probar) el postre.",a:"recomendó, probé"},
+        {q:"Ellas ____ (preferir) pizza y ____ (compartir) una ensalada.",a:"prefirieron, compartieron"},
+        {q:"Tú ____ (leer) el menú y ____ (escoger) paella.",a:"leíste, escogiste"}
+      ],
+      "Deportes": [
+        {q:"Ayer el equipo ____ (jugar) y ____ (ganar) el partido.",a:"jugó, ganó"},
+        {q:"Nosotros ____ (ir) al estadio y ____ (ver) un gol increíble.",a:"fuimos, vimos"},
+        {q:"Yo ____ (correr) cinco kilómetros y ____ (beber) agua.",a:"corrí, bebí"},
+        {q:"Ellos ____ (competir) y ____ (dormir) después del torneo.",a:"compitieron, durmieron"},
+        {q:"Tú ____ (traer) tu raqueta pero ____ (olvidar) las pelotas.",a:"trajiste, olvidaste"}
+      ],
+      "Tecnología": [
+        {q:"Ayer yo ____ (descargar) una app y ____ (instalar) el programa.",a:"descargué, instalé"},
+        {q:"Nosotros ____ (tener) una videollamada y ____ (compartir) la pantalla.",a:"tuvimos, compartimos"},
+        {q:"Ella ____ (hacer) clic y ____ (abrir) el archivo.",a:"hizo, abrió"},
+        {q:"Ellos ____ (poner) las fotos en la nube y ____ (borrar) las copias.",a:"pusieron, borraron"},
+        {q:"Tú ____ (pedir) ayuda técnica y ____ (resolver) el problema.",a:"pediste, resolviste"}
+      ]
+    };
+
+    /*********************
+     * STATE & UTILITIES *
+     *********************/
+    const boardEl = document.getElementById("board");
+    const questionBox = document.getElementById("question-box");
+    const questionEl  = document.getElementById("question");
+    const answersEl   = document.getElementById("answers");
+    const feedbackEl  = document.getElementById("feedback");
+    const closeBtn    = document.getElementById("close-btn");
+    const ddBanner    = document.getElementById("dd-banner");
+
+    const accentTools = document.getElementById("accent-tools");
+    const toggleAccentsBtn = document.getElementById("toggle-accents");
+    const accentRow = document.getElementById("accent-row");
+
+    const newGameBtn = document.getElementById("new-game");
+    const resetScoresBtn = document.getElementById("reset-scores");
+    const toggleDDBtn = document.getElementById("toggle-dd");
+
+    const scoreboardEl = document.getElementById("scoreboard");
+    const addTeamBtn = document.getElementById("add-team");
+    const newTeamName = document.getElementById("new-team-name");
+
+    const awardRow = document.getElementById("award-row");
+    const awardTeamSel = document.getElementById("award-team");
+    const awardCorrectBtn = document.getElementById("award-correct");
+    const awardWrongBtn = document.getElementById("award-wrong");
+
+    let inputRef = null;         // current input for accents
+    let currentAnswer = "";      // text of correct answer
+    let currentValue = 0;        // value of the question or wager
+    let lastCell = null;         // reference to clicked cell
+    let isMultipleChoice = false;
+    let nextPickIsDD = false;    // when teacher toggles DD
+    let ddActive = false;        // current question is DD
+    let currentDDTeam = null;    // team id for DD
+    let teams = [];              // [{id,name,score}]
+    let gameData = null;         // { categories: [names], questions: {cat:[...5]} }
+
+    const accentChars = ["á","é","í","ó","ú","ñ","ü","¡","¿"];
+    accentChars.forEach(ch=>{
+      const b=document.createElement("button");
+      b.className="accent-btn"; b.type="button"; b.textContent=ch; b.title="Insertar "+ch;
+      b.addEventListener("click",()=>insertAccent(ch));
+      accentRow.appendChild(b);
+    });
+
+    function randomPick(arr,n){
+      const copy=[...arr]; const out=[];
+      while (copy.length && out.length<n){
+        const i=Math.floor(Math.random()*copy.length);
+        out.push(copy.splice(i,1)[0]);
+      }
+      return out;
+    }
+    function sampleQuestions(catArr){
+      // take first 5 shuffled
+      const arr=[...catArr];
+      for (let i=arr.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];
+      }
+      return arr.slice(0,5);
+    }
+
+    function generateGame(){
+      const allCats = Object.keys(BANK);
+      const chosenCats = randomPick(allCats,5);
+      const qs = {};
+      chosenCats.forEach(c=>{ qs[c]=sampleQuestions(BANK[c]); });
+      return {categories:chosenCats, questions:qs};
+    }
+
+    /***************
+     * SCOREBOARD  *
+     ***************/
+    function renderScoreboard(){
+      scoreboardEl.innerHTML="";
+      teams.forEach(t=>{
+        const card=document.createElement("div"); card.className="team";
+        const title=document.createElement("h3"); title.textContent=t.name;
+        const row=document.createElement("div"); row.className="row";
+        const score=document.createElement("span"); score.className="score"; score.id=`score-${t.id}`; score.textContent=t.score;
+        const plus=document.createElement("button"); plus.className="btn small"; plus.textContent="+100"; plus.onclick=()=>changeScore(t.id,100);
+        const minus=document.createElement("button"); minus.className="btn small warn"; minus.textContent="-100"; minus.onclick=()=>changeScore(t.id,-100);
+        const del=document.createElement("button"); del.className="btn small alt"; del.textContent="🗑️"; del.onclick=()=>removeTeam(t.id);
+
+        row.append(score,plus,minus,del);
+        card.append(title,row);
+        scoreboardEl.appendChild(card);
+      });
+      // refresh award team selector
+      awardTeamSel.innerHTML="";
+      teams.forEach(t=>{
+        const opt=document.createElement("option");
+        opt.value=t.id; opt.textContent=t.name;
+        awardTeamSel.appendChild(opt);
+      });
+    }
+    function addTeam(name){
+      const id="t"+Math.random().toString(36).slice(2,7);
+      teams.push({id,name:name||`Equipo ${teams.length+1}`,score:0});
+      renderScoreboard();
+    }
+    function removeTeam(id){
+      teams=teams.filter(t=>t.id!==id);
+      renderScoreboard();
+    }
+    function changeScore(id,delta){
+      const t=teams.find(x=>x.id===id); if(!t) return;
+      t.score += delta;
+      const el=document.getElementById(`score-${id}`); if(el) el.textContent=t.score;
+    }
+    addTeamBtn.addEventListener("click",()=>{
+      addTeam(newTeamName.value.trim());
+      newTeamName.value="";
+      newTeamName.focus();
+    });
+    resetScoresBtn.addEventListener("click",()=>{
+      teams.forEach(t=>t.score=0); renderScoreboard();
+    });
+
+    // initial teams
+    addTeam("Equipo A"); addTeam("Equipo B");
+
+    /************
+     * BUILD UI *
+     ************/
+    function buildBoard(){
+      boardEl.innerHTML="";
+      // headers
+      gameData.categories.forEach(cat=>{
+        const h=document.createElement("div");
+        h.className="header"; h.textContent=cat;
+        boardEl.appendChild(h);
+      });
+      // five rows of values
+      for (let r=0;r<5;r++){
+        for (let c=0;c<5;c++){
+          const cat=gameData.categories[c];
+          const cell=document.createElement("div");
+          cell.className="cell"; cell.textContent=(r+1)*100;
+          cell.dataset.cat=cat; cell.dataset.index=r;
+          cell.addEventListener("click",()=>onCell(cat,r,cell));
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function newGame(){
+      gameData = generateGame();
+      ddActive=false; nextPickIsDD=false;
+      toggleDDBtn.classList.remove("toggle-on");
+      buildBoard();
+      closeQuestion();
+    }
+    newGameBtn.addEventListener("click", newGame);
+
+    /********************
+     * DAILY DOUBLE UX  *
+     ********************/
+    toggleDDBtn.addEventListener("click",()=>{
+      nextPickIsDD=!nextPickIsDD;
+      toggleDDBtn.classList.toggle("toggle-on",nextPickIsDD);
+    });
+
+    /**********************
+     * QUESTION FLOW/UX   *
+     **********************/
+    function onCell(category, index, cell){
+      if (cell.classList.contains("used")) return;
+
+      // Mark as DD if toggled
+      ddActive=false; currentDDTeam=null; currentValue=(index+1)*100;
+      if (nextPickIsDD){
+        ddActive=true; nextPickIsDD=false;
+        toggleDDBtn.classList.remove("toggle-on");
+        cell.classList.add("dd");
+      }
+
+      const qObj = gameData.questions[category][index];
+      isMultipleChoice = !!qObj.options;
+
+      // Build UI
+      questionEl.textContent = qObj.q;
+      answersEl.innerHTML = "";
+      feedbackEl.textContent = "";
+      awardRow.style.display = "none";
+      ddBanner.style.display = ddActive ? "block" : "none";
+      lastCell = cell;
+      currentAnswer = qObj.a;
+
+      if (isMultipleChoice){
+        qObj.options.forEach(opt=>{
+          const btn=document.createElement("button");
+          btn.className="btn small"; btn.textContent=opt;
+          btn.addEventListener("click",()=>finishAnswer(opt));
+          answersEl.appendChild(btn);
+        });
+        accentTools.style.display="none";
+      } else {
+        const input=document.createElement("input");
+        input.type="text"; input.placeholder="Escribe tu respuesta";
+        input.autocomplete="off"; input.spellcheck=false;
+        input.addEventListener("focus",()=>inputRef=input);
+        input.addEventListener("keydown",(e)=>{ if(e.key==="Enter") submitInput(); });
+        const submit=document.createElement("button");
+        submit.className="btn small"; submit.textContent="Enviar";
+        submit.addEventListener("click", submitInput);
+        function submitInput(){ finishAnswer(input.value.trim()); }
+
+        answersEl.appendChild(input); answersEl.appendChild(submit);
+        inputRef=input;
+        accentTools.style.display="block";
+        hideAccentRow();
+        setTimeout(()=>input.focus(),0);
+      }
+
+      // If DD: ask for team + wager first
+      if (ddActive){
+        answersEl.prepend(ddWagerUI());
+      }
+
+      questionBox.style.display="block";
+      cell.classList.add("used");
+    }
+
+    function finishAnswer(ans){
+      // If DD requires a team + wager first
+      if (ddActive && (!currentDDTeam || currentValue<=0)){
+        feedbackEl.textContent="Selecciona equipo y apuesta antes de responder.";
+        feedbackEl.style.color="#ffeb3b";
+        return;
+      }
+      const normalize=s=>s.normalize("NFC").toLowerCase().trim();
+      const ok = normalize(ans)===normalize(currentAnswer);
+      if (ok){
+        feedbackEl.textContent="✅ ¡Correcto!";
+        feedbackEl.style.color="#6CFF7D";
+      } else {
+        feedbackEl.textContent="❌ Incorrecto. Respuesta: "+currentAnswer;
+        feedbackEl.style.color="#ff7979";
+      }
+      // reveal award row
+      awardRow.style.display="flex";
+      // If DD, auto-select the chosen team in selector
+      if (ddActive && currentDDTeam){
+        awardTeamSel.value = currentDDTeam;
+      }
+      // For normal questions, currentValue is (row*100); for DD, it's the wager.
+      // Award buttons handle adding/subtracting.
+    }
+
+    function ddWagerUI(){
+      const wrap=document.createElement("div");
+      wrap.className="controls";
+      const teamLabel=document.createElement("label"); teamLabel.textContent="Equipo (Daily Double):";
+      const teamSel=document.createElement("select");
+      teams.forEach(t=>{
+        const opt=document.createElement("option");
+        opt.value=t.id; opt.textContent=t.name;
+        teamSel.appendChild(opt);
+      });
+      const wager=document.createElement("input");
+      wager.type="number"; wager.min="100"; wager.step="100"; wager.value=100;
+      wager.style.padding="8px"; wager.style.borderRadius="8px"; wager.style.border="1px solid #555";
+      const setBtn=document.createElement("button");
+      setBtn.className="btn small"; setBtn.textContent="Fijar apuesta";
+
+      setBtn.addEventListener("click",()=>{
+        const id=teamSel.value;
+        const w=parseInt(wager.value,10);
+        if (!id || isNaN(w) || w<=0){
+          feedbackEl.textContent="Indica un equipo y una apuesta válida (≥100).";
+          feedbackEl.style.color="#ffeb3b"; return;
+        }
+        currentDDTeam=id;
+        currentValue=w;
+        feedbackEl.textContent=`Daily Double listo → ${teams.find(t=>t.id===id)?.name} apuesta ${w} puntos.`;
+        feedbackEl.style.color="#6CFF7D";
+      });
+
+      wrap.append(teamLabel,teamSel, document.createTextNode(" Apuesta:"), wager, setBtn);
+      return wrap;
+    }
+
+    function closeQuestion(){
+      questionBox.style.display="none";
+      feedbackEl.textContent="";
+      currentAnswer=""; inputRef=null; ddActive=false; currentDDTeam=null;
+      ddBanner.style.display="none";
+    }
+    document.getElementById("close-btn").addEventListener("click", closeQuestion);
+
+    // Awarding points (after answer shown)
+    awardCorrectBtn.addEventListener("click",()=>{
+      const id=awardTeamSel.value;
+      if (!id) return;
+      changeScore(id, Math.abs(currentValue));
+      awardRow.style.display="none";
+    });
+    awardWrongBtn.addEventListener("click",()=>{
+      const id=awardTeamSel.value;
+      if (!id) return;
+      changeScore(id, -Math.abs(currentValue));
+      awardRow.style.display="none";
+    });
+
+    /*****************
+     * ACCENTS HELPER*
+     *****************/
+    function insertAccent(char){
+      const el=inputRef; if(!el) return;
+      const start=el.selectionStart ?? el.value.length;
+      const end  =el.selectionEnd ?? el.value.length;
+      const before=el.value.slice(0,start);
+      const after =el.value.slice(end);
+      el.value=before+char+after;
+      const pos=start+char.length;
+      el.setSelectionRange(pos,pos);
+      el.focus();
+    }
+    function hideAccentRow(){ accentRow.style.display="none"; toggleAccentsBtn.setAttribute("aria-expanded","false"); }
+    function showAccentRow(){ accentRow.style.display="flex"; toggleAccentsBtn.setAttribute("aria-expanded","true"); }
+    toggleAccentsBtn.addEventListener("click",()=>{
+      if (accentRow.style.display==="flex"){ hideAccentRow(); } else { showAccentRow(); }
+      if (inputRef) inputRef.focus();
+    });
+
+    // Start the first game
+    newGame();
+  </script>
+</body>
+</html>

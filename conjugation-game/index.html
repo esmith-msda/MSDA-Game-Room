@@ -1,195 +1,440 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Spanish Verb Conjugation Game</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spanish Verb Conjugation Practice</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; text-align: center; padding: 20px; }
-    #game, #end, #question { display: none; }
-    button { padding: 10px 20px; margin: 5px; border-radius: 6px; cursor: pointer; }
-    input { padding: 10px; font-size: 16px; }
-    .correct { color: green; font-weight: bold; }
-    .incorrect { color: red; font-weight: bold; }
+    :root {
+      --bg: #0f172a;        /* slate-900 */
+      --panel: #111827;     /* gray-900 */
+      --ink: #e5e7eb;       /* gray-200 */
+      --muted: #9ca3af;     /* gray-400 */
+      --accent: #22c55e;    /* green-500 */
+      --accent2: #3b82f6;   /* blue-500 */
+      --danger: #ef4444;    /* red-500 */
+      --warn: #f59e0b;      /* amber-500 */
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-weight: 800; letter-spacing: 0.2px; }
+    .card { background: var(--panel); border-radius: 14px; padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+    select, input[type="number"], input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #374151; background: #0b1220; color: var(--ink); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn { appearance: none; border: none; border-radius: 12px; padding: 10px 14px; font-weight: 600; cursor: pointer; color: #0b1220; background: var(--accent2); }
+    .btn.secondary { background: #64748b; color: white; }
+    .btn.warn { background: var(--warn); color: #0b1220; }
+    .btn.good { background: var(--accent); color: #04210f; }
+    .btn.danger { background: var(--danger); color: white; }
+    .pill { padding: 4px 10px; border-radius: 999px; background: #0b1220; color: var(--muted); border: 1px solid #1f2937; font-size: 12px; }
+    .center { text-align: center; }
+    .big { font-size: clamp(22px, 3vw, 28px); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .feedback { min-height: 28px; font-weight: 700; }
+    .correct { color: #22c55e; }
+    .incorrect { color: #ef4444; }
+    .hinted { color: #f59e0b; }
+    .kbdbar button { background: #0b1220; border: 1px solid #374151; color: var(--ink); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+    .kbdbar { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+    .small { font-size: 12px; color: var(--muted); }
+    #question { font-size: clamp(20px, 4vw, 28px); margin: 10px 0 6px; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <h1>Spanish Verb Conjugation Practice</h1>
 
-<h1>Spanish Verb Conjugation Practice</h1>
+    <!-- Setup Screen -->
+    <section id="setup" class="card grid grid-2">
+      <div>
+        <label for="tense">Tense / Tiempo verbal</label>
+        <select id="tense">
+          <option value="present">Presente</option>
+          <option value="preterite">Pretérito</option>
+          <option value="imperfect">Imperfecto</option>
+          <option value="future">Futuro</option>
+          <option value="conditional">Condicional</option>
+        </select>
+      </div>
+      <div>
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="subject">Sujeto + verbo</option>
+          <option value="sentence">Oración con hueco</option>
+        </select>
+      </div>
+      <div>
+        <label for="pool">Verb pool</label>
+        <select id="pool">
+          <option value="common">Comunes</option>
+          <option value="uncommon">Menos comunes</option>
+          <option value="both" selected>Ambas</option>
+        </select>
+      </div>
+      <div>
+        <label for="irregulars">Include irregulars?</label>
+        <select id="irregulars">
+          <option value="yes" selected>Sí</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div>
+        <label for="numQuestions"># of questions</label>
+        <input type="number" id="numQuestions" min="1" max="100" value="10" />
+      </div>
+      <div>
+        <label for="excludeVos">Extra options</label>
+        <div class="row">
+          <input type="checkbox" id="excludeVos" />
+          <span class="small">Exclude <em>vosotros</em> forms</span>
+        </div>
+      </div>
+      <div class="row center" style="grid-column: 1 / -1; justify-content:center;">
+        <button class="btn good" id="startBtn">Start</button>
+      </div>
+      <p class="small" style="grid-column:1/-1;">Tip: Press <span class="pill">Enter</span> to submit answers during the game. Use the accent keys below the answer box.</p>
+    </section>
 
-<div id="setup">
-  <h2>Customize Your Practice</h2>
-  <label>Tense:
-    <select id="tense">
-      <option value="present">Present</option>
-      <option value="preterite">Preterite</option>
-      <option value="imperfect">Imperfect</option>
-      <option value="future">Future</option>
-      <option value="conditional">Conditional</option>
-    </select>
-  </label><br><br>
+    <!-- Game Screen -->
+    <section id="game" class="card hidden">
+      <div class="row" style="justify-content: space-between;">
+        <div id="progress" class="pill">0 / 0</div>
+        <div class="row" style="gap:8px; align-items:center;">
+          <span class="pill" id="tenseBadge">Tense</span>
+          <span class="pill" id="modeBadge">Mode</span>
+        </div>
+        <button class="btn secondary" id="resetBtn">Reset</button>
+      </div>
 
-  <label>Mode:
-    <select id="mode">
-      <option value="subject">Subject + Verb</option>
-      <option value="sentence">Sentence Fill-in</option>
-    </select>
-  </label><br><br>
+      <div id="question" class="big center" aria-live="polite"></div>
 
-  <label>Verb pool:
-    <select id="pool">
-      <option value="common">Common verbs</option>
-      <option value="uncommon">Uncommon verbs</option>
-      <option value="both">Both</option>
-    </select>
-  </label><br><br>
+      <div class="row" style="justify-content:center;">
+        <input id="answer" type="text" placeholder="Type your answer…" autocomplete="off" class="mono" style="max-width:420px;" />
+        <button class="btn" id="submitBtn">Submit</button>
+        <button class="btn warn" id="hintBtn">Hint (1)</button>
+      </div>
 
-  <label>Include irregulars?
-    <select id="irregulars">
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-  </label><br><br>
+      <div class="kbdbar" aria-label="Accent keyboard">
+        <button data-char="á">á</button>
+        <button data-char="é">é</button>
+        <button data-char="í">í</button>
+        <button data-char="ó">ó</button>
+        <button data-char="ú">ú</button>
+        <button data-char="ü">ü</button>
+        <button data-char="ñ">ñ</button>
+      </div>
 
-  <label>Number of questions:
-    <input type="number" id="numQuestions" min="1" max="50" value="10">
-  </label><br><br>
+      <p id="feedback" class="feedback center"></p>
+    </section>
 
-  <button onclick="startGame()">Start</button>
-</div>
+    <!-- End Screen -->
+    <section id="end" class="card hidden center">
+      <h2>¡Buen trabajo!</h2>
+      <p id="score" class="big"></p>
+      <div class="row center" style="justify-content:center;">
+        <button class="btn good" id="playAgainBtn">Play again</button>
+        <button class="btn secondary" id="backBtn">Back to setup</button>
+      </div>
+    </section>
+  </div>
 
-<div id="game">
-  <h2 id="progress"></h2>
-  <div id="question"></div>
-  <input type="text" id="answer" placeholder="Type your answer">
-  <button onclick="checkAnswer()">Submit</button>
-  <button onclick="getHint()" id="hintBtn">Hint</button>
-  <p id="feedback"></p>
-</div>
+  <script>
+  // ========================= Data =========================
+  const VERB_POOLS = {
+    common: ["hablar","comer","vivir","ir","ser","tener","hacer","poder","decir"],
+    uncommon: ["caber","huir","conducir","merendar","zambullir"],
+  };
 
-<div id="end">
-  <h2>Game Over!</h2>
-  <p id="score"></p>
-  <button onclick="restart()">Play Again</button>
-</div>
+  const PRONOUNS = ["yo","tú","él/ella/usted","nosotros","vosotros","ellos/ustedes"]; // index order matters
 
-<script>
-const verbs = {
-  common: ["hablar", "comer", "vivir", "ir", "ser", "tener", "hacer", "poder", "decir"],
-  uncommon: ["caber", "huir", "conducir", "merendar", "zambullir"],
-};
+  // Explicit irregular overrides by tense -> verb -> [yo..ellos]
+  const IRREGULAR_OVERRIDES = {
+    present: {
+      ir:     ["voy","vas","va","vamos","vais","van"],
+      ser:    ["soy","eres","es","somos","sois","son"],
+      tener:  ["tengo","tienes","tiene","tenemos","tenéis","tienen"],
+      hacer:  ["hago","haces","hace","hacemos","hacéis","hacen"],
+      poder:  ["puedo","puedes","puede","podemos","podéis","pueden"],
+      decir:  ["digo","dices","dice","decimos","decís","dicen"],
+      caber:  ["quepo","cabes","cabe","cabemos","cabéis","caben"],
+      conducir:["conduzco","conduces","conduce","conducimos","conducís","conducen"],
+      huir:   ["huyo","huyes","huye","huimos","huís","huyen"],
+      merendar:["meriendo","meriendas","merienda","merendamos","merendáis","meriendan"],
+      zambullir:["zambullo","zambulles","zambulle","zambullimos","zambullís","zambullen"],
+    },
+    preterite: {
+      ir:     ["fui","fuiste","fue","fuimos","fuisteis","fueron"],
+      ser:    ["fui","fuiste","fue","fuimos","fuisteis","fueron"],
+      tener:  ["tuve","tuviste","tuvo","tuvimos","tuvisteis","tuvieron"],
+      hacer:  ["hice","hiciste","hizo","hicimos","hicisteis","hicieron"],
+      poder:  ["pude","pudiste","pudo","pudimos","pudisteis","pudieron"],
+      decir:  ["dije","dijiste","dijo","dijimos","dijisteis","dijeron"],
+      conducir:["conduje","condujiste","condujo","condujimos","condujisteis","condujeron"],
+      caber:  ["cupe","cupiste","cupo","cupimos","cupisteis","cupieron"],
+      huir:   ["huí","huiste","huyó","huimos","huisteis","huyeron"],
+      zambullir:["zambullí","zambulliste","zambulló","zambullimos","zambullisteis","zambulleron"],
+    },
+    imperfect: {
+      ir:     ["iba","ibas","iba","íbamos","ibais","iban"],
+      ser:    ["era","eras","era","éramos","erais","eran"],
+    },
+  };
 
-const conjugations = {
-  present: {
-    hablar: ["hablo","hablas","habla","hablamos","habláis","hablan"],
-    comer: ["como","comes","come","comemos","coméis","comen"],
-    vivir: ["vivo","vives","vive","vivimos","vivís","viven"],
-    ir: ["voy","vas","va","vamos","vais","van"],
-    ser: ["soy","eres","es","somos","sois","son"],
-    tener: ["tengo","tienes","tiene","tenemos","tenéis","tienen"],
-    hacer: ["hago","haces","hace","hacemos","hacéis","hacen"],
-    poder: ["puedo","puedes","puede","podemos","podéis","pueden"],
-    decir: ["digo","dices","dice","decimos","decís","dicen"],
-  },
-  // For demo purposes only a few tenses are filled in fully
-  preterite: {
-    hablar: ["hablé","hablaste","habló","hablamos","hablasteis","hablaron"],
-    comer: ["comí","comiste","comió","comimos","comisteis","comieron"],
-    vivir: ["viví","viviste","vivió","vivimos","vivisteis","vivieron"],
-    ir: ["fui","fuiste","fue","fuimos","fuisteis","fueron"],
-    ser: ["fui","fuiste","fue","fuimos","fuisteis","fueron"],
+  // Irregular stems for future/conditional
+  const STEM_IRREGULARS = {
+    decir: "dir",
+    hacer: "har",
+    poder: "podr",
+    tener: "tendr",
+    caber: "cabr",
+  };
+
+  // ====================== Utilities =======================
+  const byId = (id) => document.getElementById(id);
+  const choose = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  function removeDiacritics(str){
+    return str.normalize('NFD').replace(/\p{Diacritic}/gu, '');
   }
-};
 
-const pronouns = ["yo","tú","él/ella/usted","nosotros","vosotros","ellos/ustedes"];
+  function endsWithAny(word, suffixes){
+    return suffixes.find(s => word.endsWith(s));
+  }
 
-let settings = {};
-let questions = [];
-let current = 0;
-let score = 0;
-let hintUsed = false;
+  function isIrregular(verb, tense){
+    if (IRREGULAR_OVERRIDES[tense] && IRREGULAR_OVERRIDES[tense][verb]) return true;
+    if ((tense === 'future' || tense === 'conditional') && STEM_IRREGULARS[verb]) return true;
+    return false;
+  }
 
-function startGame() {
-  settings.tense = document.getElementById("tense").value;
-  settings.mode = document.getElementById("mode").value;
-  settings.pool = document.getElementById("pool").value;
-  settings.irregulars = document.getElementById("irregulars").value;
-  settings.numQuestions = parseInt(document.getElementById("numQuestions").value);
+  function conjRegular(verb, tense, person){
+    const type = endsWithAny(verb, ["ar","er","ir"]) || "ir"; // default safeguard
+    const stem = verb.slice(0, -2);
 
-  // build question set
-  let pool = [];
-  if (settings.pool === "common" || settings.pool === "both") pool.push(...verbs.common);
-  if (settings.pool === "uncommon" || settings.pool === "both") pool.push(...verbs.uncommon);
+    const present = {
+      ar: ["o","as","a","amos","áis","an"],
+      er: ["o","es","e","emos","éis","en"],
+      ir: ["o","es","e","imos","ís","en"],
+    };
+    const preterite = {
+      ar: ["é","aste","ó","amos","asteis","aron"],
+      er: ["í","iste","ió","imos","isteis","ieron"],
+      ir: ["í","iste","ió","imos","isteis","ieron"],
+    };
+    const imperfect = {
+      ar: ["aba","abas","aba","ábamos","abais","aban"],
+      er: ["ía","ías","ía","íamos","íais","ían"],
+      ir: ["ía","ías","ía","íamos","íais","ían"],
+    };
+    const futCond = {
+      future: ["é","ás","á","emos","éis","án"],
+      conditional: ["ía","ías","ía","íamos","íais","ían"],
+    };
 
-  questions = [];
-  for (let i=0;i<settings.numQuestions;i++) {
-    let verb = pool[Math.floor(Math.random()*pool.length)];
-    let person = Math.floor(Math.random()*pronouns.length);
-    if (conjugations[settings.tense][verb]) {
-      questions.push({verb, person});
+    switch (tense){
+      case 'present':   return stem + present[type][person];
+      case 'preterite': return stem + preterite[type][person];
+      case 'imperfect': return stem + imperfect[type][person];
+      case 'future':    return verb + futCond.future[person];
+      case 'conditional': return verb + futCond.conditional[person];
+      default: return verb; // shouldn't happen
     }
   }
 
-  document.getElementById("setup").style.display = "none";
-  document.getElementById("game").style.display = "block";
-  current = 0; score = 0; hintUsed = false;
-  document.getElementById("hintBtn").disabled = false;
-  showQuestion();
-}
-
-function showQuestion() {
-  let q = questions[current];
-  document.getElementById("progress").textContent = `Question ${current+1} of ${questions.length}`;
-  let display;
-  if (settings.mode === "subject") {
-    display = `${pronouns[q.person]} _____ (${q.verb})`;
-  } else {
-    display = `Yo quiero ${q.verb} todos los días → Yo _____ todos los días.`;
+  function conj(verb, tense, person){
+    const lower = verb.toLowerCase();
+    // Overrides first
+    if (IRREGULAR_OVERRIDES[tense] && IRREGULAR_OVERRIDES[tense][lower]){
+      return IRREGULAR_OVERRIDES[tense][lower][person];
+    }
+    // Future/Conditional stems
+    if ((tense === 'future' || tense === 'conditional') && STEM_IRREGULARS[lower]){
+      const stem = STEM_IRREGULARS[lower];
+      const endings = tense === 'future' ? ["é","ás","á","emos","éis","án"] : ["ía","ías","ía","íamos","íais","ían"];
+      return stem + endings[person];
+    }
+    // Regular fallback
+    return conjRegular(lower, tense, person);
   }
-  document.getElementById("question").textContent = display;
-  document.getElementById("answer").value = "";
-  document.getElementById("feedback").textContent = "";
-}
 
-function checkAnswer() {
-  let q = questions[current];
-  let ans = document.getElementById("answer").value.trim().toLowerCase();
-  let correct = conjugations[settings.tense][q.verb][q.person];
-  if (ans === correct) {
-    document.getElementById("feedback").textContent = "✅ Correct!";
-    document.getElementById("feedback").className = "correct";
+  // Sentence templates. {SUBJ} and {INF} placeholders.
+  const SENTENCE_TEMPLATES = [
+    "{SUBJ} _____ ({INF}) todos los días.",
+    "En clase, {SUBJ} _____ ({INF}) con frecuencia.",
+    "Hoy, {SUBJ} _____ ({INF}) a las 5.",
+    "Los fines de semana, {SUBJ} _____ ({INF}).",
+    "A veces, {SUBJ} _____ ({INF}) con amigos.",
+  ];
+
+  function buildSentence(person, inf){
+    const subjText = [
+      "yo","tú","él/ella/usted","nosotros","vosotros","ellos/ustedes"
+    ][person];
+    const t = choose(SENTENCE_TEMPLATES);
+    return t.replace("{SUBJ}", subjText).replace("{INF}", inf);
+  }
+
+  // ====================== Game State ======================
+  let settings = {};         // user choices
+  let questions = [];        // [{verb, person, answer, prompt}]
+  let current = 0;
+  let score = 0;
+  let hintUsed = false;
+
+  // =================== Event Listeners ====================
+  byId('startBtn').addEventListener('click', startGame);
+  byId('submitBtn').addEventListener('click', checkAnswer);
+  byId('hintBtn').addEventListener('click', useHint);
+  byId('playAgainBtn').addEventListener('click', () => { byId('end').classList.add('hidden'); startGame(); });
+  byId('backBtn').addEventListener('click', () => { showOnly('setup'); });
+  byId('resetBtn').addEventListener('click', () => { showOnly('setup'); });
+  byId('answer').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ checkAnswer(); }});
+  document.querySelectorAll('.kbdbar button').forEach(btn => {
+    btn.addEventListener('click', () => insertAtCursor(byId('answer'), btn.dataset.char));
+  });
+
+  function insertAtCursor(input, char){
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const val = input.value;
+    input.value = val.slice(0,start) + char + val.slice(end);
+    const pos = start + char.length;
+    input.setSelectionRange(pos, pos);
+    input.focus();
+  }
+
+  function showOnly(which){
+    ['setup','game','end'].forEach(id => byId(id).classList.add('hidden'));
+    byId(which).classList.remove('hidden');
+  }
+
+  // =================== Build Questions ====================
+  function startGame(){
+    settings = {
+      tense: byId('tense').value,
+      mode: byId('mode').value,
+      pool: byId('pool').value,
+      irregulars: byId('irregulars').value,
+      numQuestions: Math.max(1, Math.min(100, parseInt(byId('numQuestions').value || '10'))),
+      excludeVos: byId('excludeVos').checked,
+    };
+
+    // Build available verbs pool
+    let pool = [];
+    if (settings.pool === 'common' || settings.pool === 'both') pool.push(...VERB_POOLS.common);
+    if (settings.pool === 'uncommon' || settings.pool === 'both') pool.push(...VERB_POOLS.uncommon);
+
+    // Filter irregulars if requested
+    if (settings.irregulars === 'no'){
+      pool = pool.filter(v => !isIrregular(v, settings.tense));
+    }
+
+    // Remove duplicates just in case
+    pool = Array.from(new Set(pool));
+
+    if (pool.length === 0){
+      alert('No verbs available with the chosen options. Try allowing irregulars or switching the pool.');
+      return;
+    }
+
+    // Build questions ensuring exact count, avoiding impossible combos
+    questions = [];
+    const persons = settings.excludeVos ? [0,1,2,3,5] : [0,1,2,3,4,5];
+
+    let safety = 0; // prevent infinite loop
+    while (questions.length < settings.numQuestions && safety < settings.numQuestions * 50){
+      safety++;
+      const verb = choose(pool);
+      const person = choose(persons);
+      const answer = conj(verb, settings.tense, person);
+      if (!answer || typeof answer !== 'string') continue; // skip if something missing
+      const prompt = (settings.mode === 'subject')
+        ? `${PRONOUNS[person]} _____ (${verb})`
+        : buildSentence(person, verb);
+      questions.push({ verb, person, answer, prompt });
+    }
+
+    if (questions.length === 0){
+      alert('Could not generate questions for these settings. Try different options.');
+      return;
+    }
+
+    // Initialize UI
+    current = 0; score = 0; hintUsed = false;
+    byId('hintBtn').disabled = false; byId('hintBtn').textContent = 'Hint (1)';
+    byId('tenseBadge').textContent = settings.tense[0].toUpperCase() + settings.tense.slice(1);
+    byId('modeBadge').textContent = (settings.mode === 'subject') ? 'Sujeto+verbo' : 'Oración';
+    showOnly('game');
+    showQuestion();
+  }
+
+  function showQuestion(){
+    const q = questions[current];
+    byId('progress').textContent = `${current+1} / ${questions.length}`;
+    byId('question').textContent = q.prompt;
+    byId('answer').value = '';
+    byId('answer').focus();
+    byId('feedback').textContent = '';
+    byId('feedback').className = 'feedback';
+  }
+
+  // =================== Checking Answers ===================
+  function checkAnswer(){
+    const q = questions[current];
+    const raw = byId('answer').value.trim();
+    if (!raw){ return; }
+
+    const ans = raw.toLowerCase();
+    const correct = q.answer.toLowerCase();
+
+    if (ans === correct){
+      rightAnswer("✅ Correct!");
+    } else if (removeDiacritics(ans) === removeDiacritics(correct)){
+      // Accept accent-insensitive, but coach
+      rightAnswer(`✅ Correct (watch accents: "${q.answer}")`);
+    } else {
+      byId('feedback').textContent = '❌ Try again!';
+      byId('feedback').className = 'feedback incorrect';
+    }
+  }
+
+  function rightAnswer(msg){
+    byId('feedback').textContent = msg;
+    byId('feedback').className = 'feedback correct';
     score++;
     current++;
-    if (current < questions.length) {
-      setTimeout(showQuestion, 800);
+    if (current < questions.length){
+      setTimeout(showQuestion, 750);
     } else {
       endGame();
     }
-  } else {
-    document.getElementById("feedback").textContent = "❌ Try again!";
-    document.getElementById("feedback").className = "incorrect";
   }
-}
 
-function getHint() {
-  if (hintUsed) return;
-  let q = questions[current];
-  let correct = conjugations[settings.tense][q.verb][q.person];
-  document.getElementById("feedback").textContent = `Hint: starts with "${correct[0]}" and ends with "${correct.slice(-1)}"`;
-  hintUsed = true;
-  document.getElementById("hintBtn").disabled = true;
-}
+  // ========================= Hint =========================
+  function useHint(){
+    if (hintUsed) return;
+    const q = questions[current];
+    const a = q.answer;
+    const hint = `Hint: ${a[0]}${'•'.repeat(Math.max(0,a.length-2))}${a.slice(-1)}`;
+    byId('feedback').textContent = hint;
+    byId('feedback').className = 'feedback hinted';
+    hintUsed = true;
+    byId('hintBtn').disabled = true;
+    byId('hintBtn').textContent = 'Hint (0)';
+  }
 
-function endGame() {
-  document.getElementById("game").style.display = "none";
-  document.getElementById("end").style.display = "block";
-  document.getElementById("score").textContent = `You got ${score} out of ${questions.length} correct!`;
-}
-
-function restart() {
-  document.getElementById("end").style.display = "none";
-  document.getElementById("setup").style.display = "block";
-}
-</script>
-
+  // ======================== Endgame =======================
+  function endGame(){
+    const total = questions.length;
+    const pct = Math.round((score/total)*100);
+    byId('score').textContent = `You got ${score} / ${total} correct (${pct}%).`;
+    showOnly('end');
+  }
+  </script>
 </body>
 </html>

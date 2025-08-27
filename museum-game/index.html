@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Frida Kahlo Museum Tour — Learning Game</title>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#171a21; --ink:#e8ecf3; --muted:#a9b1c3; --accent:#f59e0b; --accent2:#60a5fa; --good:#10b981; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Inter,Arial}
+    #wrap{display:grid;grid-template-columns:1fr 360px;gap:12px;align-items:start;max-width:1200px;margin:0 auto;padding:12px}
+    canvas{width:100%;height:720px;max-height:80vh;background:#1b2029;border:1px solid #242b36;border-radius:16px}
+    aside{background:var(--panel);border:1px solid #242b36;border-radius:16px;padding:12px;position:sticky;top:12px}
+    h1{font-size:20px;margin:0 0 8px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .pill{background:#222937;padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted)}
+    #hud{display:grid;gap:8px;margin-top:8px}
+    .card{background:#12161d;border:1px solid #222837;border-radius:14px;padding:10px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    button{all:unset;background:linear-gradient(180deg,#2a3343,#1e2532);border:1px solid #354052;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer;text-align:center}
+    button:hover{filter:brightness(1.1)}
+    button.primary{background:linear-gradient(180deg,#394559,#283142);border-color:#47556b}
+    #modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.6);padding:20px;z-index:10}
+    #panel{max-width:780px;width:100%;background:#0f141c;border:1px solid #273043;border-radius:16px;overflow:hidden}
+    #panel header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#141a24;border-bottom:1px solid #222b3a}
+    #panel h2{margin:0;font-size:18px}
+    #panel main{display:grid;gap:12px;padding:12px}
+    #panel img{width:100%;max-height:280px;object-fit:cover;border-radius:12px;border:1px solid #222b3a;background:#0b0f15}
+    .notice{font-size:13px;color:var(--muted)}
+    .q{display:grid;gap:8px}
+    .q .choice{background:#151b25;border:1px solid #243048;border-radius:10px;padding:10px;cursor:pointer}
+    .choice.correct{outline:2px solid var(--good)}
+    .choice.wrong{outline:2px solid var(--bad)}
+    .progress{height:8px;background:#0c1118;border-radius:999px;border:1px solid #20283a;overflow:hidden}
+    .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .badge{display:inline-flex;align-items:center;gap:6px;background:#0e1420;border:1px solid #253048;border-radius:12px;padding:6px 10px;font-size:12px}
+    .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#0b0f16;border:1px solid #253048;border-bottom-width:3px;padding:2px 6px;border-radius:6px}
+    .mini{font-size:12px;color:var(--muted)}
+    label.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+    label.switch input{appearance:none;width:38px;height:22px;background:#20283a;border-radius:999px;position:relative;border:1px solid #2a3348}
+    label.switch input:checked{background:#263654}
+    label.switch input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#9fb4d7;transition:all .2s ease}
+    label.switch input:checked::after{left:18px;background:#f1b44a}
+    .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;color:var(--muted)}
+    .legend i{height:10px;width:10px;border-radius:3px;display:inline-block;margin-right:6px}
+    .legend .ex{background:#1f2937}
+    .legend .you{background:#2563eb}
+    .legend .wall{background:#111827}
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="640" aria-label="Frida Kahlo Museum Game" role="img"></canvas>
+  <aside>
+    <h1>Frida Kahlo Museum Tour</h1>
+    <div class="row"><span class="pill">Move <span class="kbd">WASD</span>/<span class="kbd">Arrows</span></span><span class="pill">Interact <span class="kbd">E</span></span><span class="pill">Map <span class="kbd">M</span></span></div>
+    <div id="hud">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <strong>Progress</strong>
+          <span id="badge" class="badge" title="Answer questions to earn the Curator badge">🏛️ Badge: <b id="badgeName">Visitor</b></span>
+        </div>
+        <div class="progress" aria-label="progress"><i id="bar"></i></div>
+        <div class="mini" id="scoreMini">0 / 16 correct</div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <strong>Language</strong>
+          <label class="switch"><input id="langToggle" type="checkbox" /><span class="mini">ES / EN</span></label>
+        </div>
+        <div class="mini">Toggle to Spanish (no «vosotros»). Useful for heritage learners or bilingual classes.</div>
+      </div>
+      <div class="card">
+        <strong>Exhibits Visited</strong>
+        <div id="exlist" class="grid2"></div>
+      </div>
+      <div class="card">
+        <strong>Teacher Tools</strong>
+        <div class="grid2" style="margin-top:6px">
+          <button id="reset">Reset Progress</button>
+          <button id="export">Export Results</button>
+          <button id="shuffle">Shuffle Qs</button>
+          <button id="help">Help</button>
+        </div>
+      </div>
+      <div class="card">
+        <strong>Mini‑Map & Legend</strong>
+        <div id="minimap" style="height:160px;background:#0e1118;border:1px solid #1f2634;border-radius:10px;margin-top:6px;position:relative"></div>
+        <div class="legend" style="margin-top:6px">
+          <div><i class="you"></i> You</div>
+          <div><i class="ex"></i> Exhibit</div>
+          <div><i class="wall"></i> Wall</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- Modal Panel -->
+<div id="modal" role="dialog" aria-modal="true">
+  <div id="panel">
+    <header>
+      <h2 id="pTitle">Exhibit</h2>
+      <div class="row">
+        <button id="close">✕</button>
+      </div>
+    </header>
+    <main>
+      <img id="pImg" alt="Exhibit image placeholder" />
+      <div class="notice" id="pNote">(Teacher: replace images in <code>/assets</code>. Filenames in the exhibit data.)</div>
+      <p id="pText"></p>
+      <div id="quiz" class="q"></div>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  const c = document.getElementById('game');
+  const ctx = c.getContext('2d');
+  const DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+  c.width = 960 * DPR; c.height = 640 * DPR; c.style.width = '100%';
+  ctx.scale(DPR,DPR);
+
+  const W = 960, H = 640;
+  const rooms = [
+    {x:40,y:40,w:880,h:560,kind:'outer'},
+    {x:260,y:40,w:2,h:200,kind:'wall'},
+    {x:700,y:400,w:2,h:200,kind:'wall'},
+    {x:480,y:280,w:2,h:160,kind:'wall'},
+  ];
+
+  const EXHIBITS = [
+    { id:'self-portrait-thorns', pos:{x:120,y:120},
+      title:{en:'Self‑Portrait with Thorn Necklace and Hummingbird (1940)', es:'Autorretrato con collar de espinas y colibrí (1940)'},
+      img:'assets/thorn-necklace.jpg',
+      text:{ en:"Kahlo often used symbolic self‑portraiture to explore identity, pain, and resilience. The thorn necklace suggests suffering; the hummingbird can symbolize hope or Aztec god Huitzilopochtli.", es:"Kahlo usó el autorretrato simbólico para explorar la identidad, el dolor y la resiliencia. El collar de espinas sugiere sufrimiento; el colibrí puede simbolizar la esperanza o al dios mexica Huitzilopochtli." },
+      qs:[
+        {en:{q:'What does the thorn necklace most strongly suggest?',a:['Suffering','Wealth','Silence','Travel'],i:0,why:'Thorns evoke physical/emotional pain.'}, es:{q:'¿Qué sugiere más el collar de espinas?',a:['Sufrimiento','Riqueza','Silencio','Viaje'],i:0,why:'Las espinas evocan dolor físico/emocional.'}},
+        {en:{q:'The hummingbird is linked with which cultural reference?',a:['Greek myth','Aztec imagery','Italian Renaissance','French Impressionism'],i:1,why:'It can reference Huitzilopochtli.'}, es:{q:'¿Con qué referencia cultural se vincula el colibrí?',a:['Mito griego','Imaginario mexica','Renacimiento italiano','Impresionismo francés'],i:1,why:'Puede aludir a Huitzilopochtli.'}}
+      ] },
+    { id:'two-fridas', pos:{x:820,y:120},
+      title:{en:'The Two Fridas (1939)', es:'Las dos Fridas (1939)'}, img:'assets/two-fridas.jpg',
+      text:{ en:"A double self‑portrait reflecting dual identity and emotional rupture after her separation from Diego Rivera.", es:"Doble autorretrato que refleja la identidad dual y la ruptura emocional tras su separación de Diego Rivera." },
+      qs:[
+        {en:{q:'What theme is most central here?',a:['Landscape light','Dual identity','Religious ritual','Still life'],i:1,why:'Two selves emphasize identity split.'}, es:{q:'¿Qué tema es más central aquí?',a:['Luz del paisaje','Identidad dual','Rito religioso','Naturaleza muerta'],i:1,why:'Las dos figuras resaltan la identidad dividida.'}},
+        {en:{q:'Which event influenced this work?',a:['A trip to Paris','Marriage to Trotsky','Separation from Rivera','Move to New York'],i:2,why:'Painted during/after separation.'}, es:{q:'¿Qué evento influyó en esta obra?',a:['Un viaje a París','Matrimonio con Trotsky','Separación de Rivera','Mudanza a Nueva York'],i:2,why:'Se pintó durante/después de la separación.'}}
+      ] },
+    { id:'broken-column', pos:{x:120,y:500},
+      title:{en:'The Broken Column (1944)', es:'La columna rota (1944)'}, img:'assets/broken-column.jpg',
+      text:{ en:"After a severe bus accident, Kahlo endured lifelong pain. The cracked column stands in for her spine, fusing body and architecture.", es:"Tras un grave accidente de autobús, Kahlo sufrió dolor crónico. La columna agrietada sustituye a su columna vertebral y fusiona cuerpo y arquitectura." },
+      qs:[
+        {en:{q:'The column symbolizes…',a:['Fame','Support and fragility','Landscape','Wealth'],i:1,why:'A spine‑like support that is damaged.'}, es:{q:'La columna simboliza…',a:['Fama','Soporte y fragilidad','Paisaje','Riqueza'],i:1,why:'Un soporte tipo columna vertebral, pero dañado.'}},
+        {en:{q:'Which biographical detail connects to this painting?',a:['Art school in Rome','Bus accident injuries','Work as a sculptor','Political exile'],i:1,why:'It references her injuries.'}, es:{q:'¿Qué detalle biográfico se relaciona con el cuadro?',a:['Escuela de arte en Roma','Lesiones del accidente de autobús','Trabajo como escultora','Exilio político'],i:1,why:'Alude a sus lesiones.'}}
+      ] },
+    { id:'roots', pos:{x:820,y:500},
+      title:{en:'Roots (1943)', es:'Raíces (1943)'}, img:'assets/roots.jpg',
+      text:{ en:"Life‑giving vines flow from the body into the earth, a surreal meditation on regeneration and connection to land.", es:"De su cuerpo brotan enredaderas que nutren la tierra: una meditación surrealista sobre la regeneración y el vínculo con la tierra." },
+      qs:[
+        {en:{q:'What idea is emphasized?',a:['Industrial power','Nature and regeneration','Urban isolation','Historical battle'],i:1,why:'Vines and soil connect body and nature.'}, es:{q:'¿Qué idea se enfatiza?',a:['Poder industrial','Naturaleza y regeneración','Aislamiento urbano','Batalla histórica'],i:1,why:'Las enredaderas y la tierra conectan cuerpo y naturaleza.'}},
+        {en:{q:'The style of the piece leans toward…',a:['Cubism','Surrealism','Futurism','Baroque'],i:1,why:'Dreamlike symbolic imagery.'}, es:{q:'El estilo de la obra se inclina hacia…',a:['Cubismo','Surrealismo','Futurismo','Barroco'],i:1,why:'Imágenes oníricas y simbólicas.'}}
+      ] },
+    // NEW EXHIBITS
+    { id:'henry-ford-hospital', pos:{x:480,y:120},
+      title:{en:'Henry Ford Hospital (1932)', es:'Hospital Henry Ford (1932)'}, img:'assets/henry-ford-hospital.jpg',
+      text:{ en:"A raw depiction of medical trauma and grief. Floating objects connect body to memory and meaning.", es:"Una representación directa del trauma médico y el duelo. Objetos flotantes conectan el cuerpo con la memoria y el significado." },
+      qs:[
+        {en:{q:'The floating objects primarily represent…',a:['Political satire','Memories and bodily experience','Religious ritual','Landscape details'],i:1,why:'They symbolize facets of trauma and memory.'}, es:{q:'Los objetos flotantes representan principalmente…',a:['Sátira política','Memorias y experiencia corporal','Rito religioso','Detalles del paisaje'],i:1,why:'Simbolizan facetas del trauma y la memoria.'}},
+        {en:{q:'Where was Kahlo living when she painted this?',a:['Rome','Detroit','Coyoacán','Paris'],i:1,why:'Painted during her time in Detroit.'}, es:{q:'¿Dónde vivía Kahlo cuando lo pintó?',a:['Roma','Detroit','Coyoacán','París'],i:1,why:'Se pintó durante su tiempo en Detroit.'}}
+      ] },
+    { id:'cropped-hair', pos:{x:480,y:500},
+      title:{en:'Self‑Portrait with Cropped Hair (1940)', es:'Autorretrato con el pelo cortado (1940)'}, img:'assets/cropped-hair.jpg',
+      text:{ en:"With a tailored suit and scissors, Kahlo explores identity, gender roles, and autonomy after a major relationship change.", es:"Con traje y tijeras, Kahlo explora la identidad, los roles de género y la autonomía tras un gran cambio en su relación." },
+      qs:[
+        {en:{q:'What do the suit and scissors most directly suggest?',a:['Wealth','Independence and agency','Religious devotion','Academic study'],i:1,why:'Symbols of self‑determination and control.'}, es:{q:'¿Qué sugieren más el traje y las tijeras?',a:['Riqueza','Independencia y agencia','Devoción religiosa','Estudio académico'],i:1,why:'Símbolos de autodeterminación y control.'}},
+        {en:{q:'This work was made soon after which event?',a:['A move to Moscow','Divorce from Rivera','Art school graduation','Political exile'],i:1,why:'Painted soon after their divorce.'}, es:{q:'Esta obra se realizó poco después de qué hecho?',a:['Una mudanza a Moscú','Divorcio de Rivera','Graduación de la escuela de arte','Exilio político'],i:1,why:'Se pintó poco después del divorcio.'}}
+      ] },
+    { id:'wounded-deer', pos:{x:260,y:320},
+      title:{en:'The Wounded Deer (1946)', es:'El venado herido (1946)'}, img:'assets/wounded-deer.jpg',
+      text:{ en:"A hybrid self‑image of a deer pierced by arrows, reflecting fate, pain, and perseverance.", es:"Una autoimagen híbrida de un venado atravesado por flechas que refleja destino, dolor y perseverancia." },
+      qs:[
+        {en:{q:'The arrows most clearly symbolize…',a:['Good luck','Public fame','Pain and inevitability','Celebration'],i:2,why:'They echo suffering and a sense of fate.'}, es:{q:'Las flechas simbolizan con más claridad…',a:['Buena suerte','Fama pública','Dolor e inevitabilidad','Celebración'],i:2,why:'Evocan sufrimiento y un sentido de destino.'}},
+        {en:{q:'The setting and animal body connect Kahlo to…',a:['Urban industry','Nature and mythic imagery','Classical architecture','Cubist geometry'],i:1,why:'Nature + symbolic body merge biography and myth.'}, es:{q:'El entorno y el cuerpo animal conectan a Kahlo con…',a:['Industria urbana','Naturaleza e imaginario mítico','Arquitectura clásica','Geometría cubista'],i:1,why:'La naturaleza y el cuerpo simbólico fusionan biografía y mito.'}}
+      ] },
+    { id:'frieda-and-diego', pos:{x:700,y:320},
+      title:{en:'Frieda and Diego Rivera (1931)', es:'Frieda y Diego Rivera (1931)'}, img:'assets/frieda-diego.jpg',
+      text:{ en:"A double portrait underscoring partnership and art. Scale and posture highlight their evolving relationship.", es:"Doble retrato que subraya la pareja y el arte. La escala y la postura resaltan su relación en evolución." },
+      qs:[
+        {en:{q:'What does the scale difference primarily emphasize?',a:['Landscape depth','Diego’s public persona and role','Religious hierarchy','Architectural space'],i:1,why:'His larger scale stresses his artistic stature.'}, es:{q:'¿Qué enfatiza principalmente la diferencia de escala?',a:['Profundidad del paisaje','La figura pública y el papel de Diego','Jerarquía religiosa','Espacio arquitectónico'],i:1,why:'Su mayor escala subraya su estatura artística.'}},
+        {en:{q:'The painting is best described as…',a:['A still life','A double portrait','A seascape','A battle scene'],i:1,why:'Two figures posed together.'}, es:{q:'El cuadro se describe mejor como…',a:['Una naturaleza muerta','Un doble retrato','Un paisaje marino','Una escena de batalla'],i:1,why:'Dos figuras posadas juntas.'}}
+      ] }
+  ];
+
+  let lang = localStorage.getItem('frida.lang') || 'en';
+  const state = JSON.parse(localStorage.getItem('frida.state')||'{}');
+  const visited = new Set(state.visited||[]);
+  let correct = state.correct||0, totalQs = EXHIBITS.reduce((n,e)=>n+e.qs.length,0);
+  const player = {x: W/2, y: H/2, r: 12, speed: 2.3, vx:0, vy:0, color:'#3b82f6'};
+
+  const keys = new Set();
+  onkeydown = e=>{ keys.add(e.key.toLowerCase()); };
+  onkeyup   = e=>{ keys.delete(e.key.toLowerCase()); };
+
+  function clamp(v,min,max){ return Math.max(min, Math.min(max,v)); }
+  function rects(){ return rooms.filter(r=>r.kind!=='outer'); }
+  function collideWalls(px,py,r){
+    const outer = rooms[0];
+    px = clamp(px, outer.x + r, outer.x + outer.w - r);
+    py = clamp(py, outer.y + r, outer.y + outer.h - r);
+    for(const w of rects()){
+      if(px+r> w.x && px-r < w.x+w.w && py+r> w.y && py-r< w.y+w.h){
+        const dx1 = (w.x - (px+r)), dx2 = ((w.x+w.w) - (px-r));
+        const dy1 = (w.y - (py+r)), dy2 = ((w.y+w.h) - (py-r));
+        const fixX = Math.abs(dx1)<Math.abs(dx2)? dx1: dx2;
+        const fixY = Math.abs(dy1)<Math.abs(dy2)? dy1: dy2;
+        if(Math.abs(fixX) < Math.abs(fixY)) px += fixX; else py += fixY;
+      }
+    }
+    return {x:px,y:py};
+  }
+
+  let hovered = null;
+  function nearestExhibit(){
+    hovered = null;
+    for(const ex of EXHIBITS){
+      const dx = ex.pos.x - player.x, dy = ex.pos.y - player.y; 
+      const d2 = dx*dx + dy*dy;
+      if(d2 < 38*38){ hovered = ex; return; }
+    }
+  }
+
+  function draw(){
+    ctx.fillStyle = '#141922';
+    ctx.fillRect(0,0,W,H);
+    for(let y=40;y<H-40;y+=24){
+      for(let x=40;x<W-40;x+=24){
+        ctx.fillStyle = ( (x+y)/24 % 2 ? '#131822' : '#121721');
+        ctx.fillRect(x,y,24,24);
+      }
+    }
+
+    ctx.strokeStyle = '#0b0f16';
+    ctx.lineWidth = 12; ctx.strokeRect(40,40,880,560);
+    ctx.fillStyle = '#0d121b';
+    rects().forEach(w=>ctx.fillRect(w.x,w.y,w.w,w.h));
+
+    for(const ex of EXHIBITS){
+      ctx.fillStyle = visited.has(ex.id) ? '#263043' : '#1f2937';
+      ctx.fillRect(ex.pos.x-18, ex.pos.y-18, 36, 36);
+      ctx.fillStyle = '#9fb4d7';
+      ctx.font = '12px system-ui';
+      ctx.textAlign='center';
+      ctx.fillText((lang==='en'? ex.title.en: ex.title.es).split('(')[0].slice(0,18)+'…', ex.pos.x, ex.pos.y-26);
+    }
+
+    // player as lion emoji
+    ctx.font = '20px serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('🦁', player.x, player.y+1);
+
+    if(hovered){
+      ctx.fillStyle = '#0b0f16aa';
+      ctx.fillRect(hovered.pos.x-70, hovered.pos.y+20, 140, 28);
+      ctx.fillStyle = '#e6edf6';
+      ctx.textAlign = 'center';
+      ctx.font = '14px system-ui';
+      ctx.fillText(lang==='en'? 'Press E to view' : 'Pulsa E para ver', hovered.pos.x, hovered.pos.y+40);
+    }
+  }
+
+  function tick(){
+    const left = keys.has('a')||keys.has('arrowleft');
+    const right= keys.has('d')||keys.has('arrowright');
+    const up   = keys.has('w')||keys.has('arrowup');
+    const down = keys.has('s')||keys.has('arrowdown');
+    player.vx = (right - left) * player.speed;
+    player.vy = (down - up) * player.speed;
+    let nx = player.x + player.vx;
+    let ny = player.y + player.vy;
+    const p = collideWalls(nx,ny,player.r);
+    player.x = p.x; player.y = p.y;
+    nearestExhibit();
+    draw();
+    requestAnimationFrame(tick);
+  }
+
+  const $ = sel => document.querySelector(sel);
+  const modal = $('#modal');
+  const pTitle = $('#pTitle');
+  const pImg = $('#pImg');
+  const pText = $('#pText');
+  const quiz = $('#quiz');
+  const bar = $('#bar');
+  const scoreMini = $('#scoreMini');
+  const exlist = $('#exlist');
+  const badgeName = $('#badgeName');
+
+  function updateHUD(){
+    const pct = (correct/totalQs)*100;
+    bar.style.width = pct+"%";
+    scoreMini.textContent = `${correct} / ${totalQs} correct`;
+    badgeName.textContent = correct>=Math.ceil(totalQs*0.9)? 'Curator' : correct>=Math.ceil(totalQs*0.5)? 'Docent' : 'Visitor';
+    exlist.innerHTML = EXHIBITS.map(ex=>{
+      const done = visited.has(ex.id);
+      return `<div class="mini">${done?'✅':'⬜️'} ${(lang==='en'?ex.title.en:ex.title.es).split('(')[0]}</div>`;
+    }).join('');
+    drawMiniMap();
+  }
+
+  function save(){
+    localStorage.setItem('frida.lang', lang);
+    localStorage.setItem('frida.state', JSON.stringify({visited:[...visited], correct}));
+  }
+
+  function openExhibit(ex){
+    modal.style.display = 'grid';
+    pTitle.textContent = lang==='en'? ex.title.en : ex.title.es;
+    pImg.src = ex.img;
+    pText.textContent = lang==='en'? ex.text.en : ex.text.es;
+    quiz.innerHTML = '';
+    const qs = ex.qs.map(q=> q[lang]);
+    qs.forEach((q,idx)=>{
+      const wrap = document.createElement('div');
+      wrap.className = 'q';
+      const title = document.createElement('div');
+      title.innerHTML = `<strong>Q${idx+1}.</strong> ${q.q}`;
+      wrap.appendChild(title);
+      q.a.forEach((opt,i)=>{
+        const div = document.createElement('div');
+        div.className = 'choice';
+        div.textContent = opt;
+        div.onclick = ()=>{
+          if(div.dataset.locked) return;
+          [...wrap.querySelectorAll('.choice')].forEach(n=>n.dataset.locked=1);
+          if(i===q.i){
+            div.classList.add('correct');
+            correct++; updateHUD(); save();
+          } else {
+            div.classList.add('wrong');
+            const why = document.createElement('div');
+            why.className = 'mini';
+            why.textContent = (lang==='en'? 'Why: ' : 'Por qué: ') + q.why;
+            wrap.appendChild(why);
+          }
+        };
+        wrap.appendChild(div);
+      });
+      quiz.appendChild(wrap);
+    });
+    visited.add(ex.id); updateHUD(); save();
+  }
+
+  $('#close').onclick = ()=>{ modal.style.display = 'none'; };
+  window.addEventListener('keydown', e=>{
+    if(e.key.toLowerCase()==='e' && hovered){ openExhibit(hovered); }
+    if(e.key.toLowerCase()==='m'){ drawMiniMap(true); }
+    if(e.key==='Escape' && modal.style.display==='grid'){ modal.style.display='none'; }
+  });
+
+  function drawMiniMap(flash){
+    const mini = document.getElementById('minimap');
+    mini.innerHTML = '';
+    const s = {w: mini.clientWidth, h: mini.clientHeight};
+    const kx = s.w/W, ky = s.h/H;
+    const wall = document.createElement('canvas'); wall.width=s.w; wall.height=s.h; wall.style.width='100%'; wall.style.height='100%';
+    const mctx = wall.getContext('2d');
+    mctx.fillStyle = '#0b0f16'; mctx.fillRect(0,0,s.w,s.h);
+    mctx.fillStyle = '#111827'; rects().forEach(w=> mctx.fillRect(w.x*kx,w.y*ky,w.w*kx,w.h*ky));
+    mctx.fillStyle = '#1f2937'; EXHIBITS.forEach(ex=> mctx.fillRect(ex.pos.x*kx-3,ex.pos.y*ky-3,6,6));
+    mctx.fillStyle = '#2563eb'; mctx.beginPath(); mctx.arc(player.x*kx,player.y*ky,4,0,Math.PI*2); mctx.fill();
+    mini.appendChild(wall);
+    if(flash){ wall.style.outline = '2px solid #f59e0b'; setTimeout(()=> wall.style.outline='', 400); }
+  }
+
+  document.getElementById('reset').onclick = ()=>{
+    localStorage.removeItem('frida.state');
+    visited.clear(); correct = 0; updateHUD(); save();
+  };
+  document.getElementById('export').onclick = ()=>{
+    const blob = new Blob([JSON.stringify({date:new Date().toISOString(),lang,visited:[...visited],correct,totalQs},null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'frida-results.json'; a.click();
+  };
+  document.getElementById('shuffle').onclick = ()=>{
+    EXHIBITS.forEach(ex=> ex.qs.forEach(q=>{
+      ['en','es'].forEach(L=>{
+        const langQ = q[L];
+        const zipped = langQ.a.map((text,i)=>({text,i}));
+        for(let i=zipped.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [zipped[i],zipped[j]]=[zipped[j],zipped[i]]; }
+        langQ.a = zipped.map(z=>z.text);
+        langQ.i = zipped.findIndex(z=> z.i===langQ.i);
+      });
+    }));
+    if(modal.style.display==='grid' && hovered) openExhibit(hovered);
+  };
+  document.getElementById('help').onclick = ()=>{
+    alert('Move with WASD/Arrows. Walk to a plinth and press E. Answer questions to earn badges. Toggle ES/EN in the sidebar. Progress auto‑saves.');
+  };
+  document.getElementById('langToggle').checked = (lang==='es');
+  document.getElementById('langToggle').onchange = (e)=>{ lang = e.target.checked?'es':'en'; updateHUD(); save(); };
+
+  updateHUD(); drawMiniMap(); tick();
+})();
+</script>
+</body>
+</html>

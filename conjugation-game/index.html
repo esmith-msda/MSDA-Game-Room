@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Spanish Verb Conjugation Game</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; text-align: center; padding: 20px; }
+    #game, #end, #question { display: none; }
+    button { padding: 10px 20px; margin: 5px; border-radius: 6px; cursor: pointer; }
+    input { padding: 10px; font-size: 16px; }
+    .correct { color: green; font-weight: bold; }
+    .incorrect { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>Spanish Verb Conjugation Practice</h1>
+
+<div id="setup">
+  <h2>Customize Your Practice</h2>
+  <label>Tense:
+    <select id="tense">
+      <option value="present">Present</option>
+      <option value="preterite">Preterite</option>
+      <option value="imperfect">Imperfect</option>
+      <option value="future">Future</option>
+      <option value="conditional">Conditional</option>
+    </select>
+  </label><br><br>
+
+  <label>Mode:
+    <select id="mode">
+      <option value="subject">Subject + Verb</option>
+      <option value="sentence">Sentence Fill-in</option>
+    </select>
+  </label><br><br>
+
+  <label>Verb pool:
+    <select id="pool">
+      <option value="common">Common verbs</option>
+      <option value="uncommon">Uncommon verbs</option>
+      <option value="both">Both</option>
+    </select>
+  </label><br><br>
+
+  <label>Include irregulars?
+    <select id="irregulars">
+      <option value="yes">Yes</option>
+      <option value="no">No</option>
+    </select>
+  </label><br><br>
+
+  <label>Number of questions:
+    <input type="number" id="numQuestions" min="1" max="50" value="10">
+  </label><br><br>
+
+  <button onclick="startGame()">Start</button>
+</div>
+
+<div id="game">
+  <h2 id="progress"></h2>
+  <div id="question"></div>
+  <input type="text" id="answer" placeholder="Type your answer">
+  <button onclick="checkAnswer()">Submit</button>
+  <button onclick="getHint()" id="hintBtn">Hint</button>
+  <p id="feedback"></p>
+</div>
+
+<div id="end">
+  <h2>Game Over!</h2>
+  <p id="score"></p>
+  <button onclick="restart()">Play Again</button>
+</div>
+
+<script>
+const verbs = {
+  common: ["hablar", "comer", "vivir", "ir", "ser", "tener", "hacer", "poder", "decir"],
+  uncommon: ["caber", "huir", "conducir", "merendar", "zambullir"],
+};
+
+const conjugations = {
+  present: {
+    hablar: ["hablo","hablas","habla","hablamos","habláis","hablan"],
+    comer: ["como","comes","come","comemos","coméis","comen"],
+    vivir: ["vivo","vives","vive","vivimos","vivís","viven"],
+    ir: ["voy","vas","va","vamos","vais","van"],
+    ser: ["soy","eres","es","somos","sois","son"],
+    tener: ["tengo","tienes","tiene","tenemos","tenéis","tienen"],
+    hacer: ["hago","haces","hace","hacemos","hacéis","hacen"],
+    poder: ["puedo","puedes","puede","podemos","podéis","pueden"],
+    decir: ["digo","dices","dice","decimos","decís","dicen"],
+  },
+  // For demo purposes only a few tenses are filled in fully
+  preterite: {
+    hablar: ["hablé","hablaste","habló","hablamos","hablasteis","hablaron"],
+    comer: ["comí","comiste","comió","comimos","comisteis","comieron"],
+    vivir: ["viví","viviste","vivió","vivimos","vivisteis","vivieron"],
+    ir: ["fui","fuiste","fue","fuimos","fuisteis","fueron"],
+    ser: ["fui","fuiste","fue","fuimos","fuisteis","fueron"],
+  }
+};
+
+const pronouns = ["yo","tú","él/ella/usted","nosotros","vosotros","ellos/ustedes"];
+
+let settings = {};
+let questions = [];
+let current = 0;
+let score = 0;
+let hintUsed = false;
+
+function startGame() {
+  settings.tense = document.getElementById("tense").value;
+  settings.mode = document.getElementById("mode").value;
+  settings.pool = document.getElementById("pool").value;
+  settings.irregulars = document.getElementById("irregulars").value;
+  settings.numQuestions = parseInt(document.getElementById("numQuestions").value);
+
+  // build question set
+  let pool = [];
+  if (settings.pool === "common" || settings.pool === "both") pool.push(...verbs.common);
+  if (settings.pool === "uncommon" || settings.pool === "both") pool.push(...verbs.uncommon);
+
+  questions = [];
+  for (let i=0;i<settings.numQuestions;i++) {
+    let verb = pool[Math.floor(Math.random()*pool.length)];
+    let person = Math.floor(Math.random()*pronouns.length);
+    if (conjugations[settings.tense][verb]) {
+      questions.push({verb, person});
+    }
+  }
+
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("game").style.display = "block";
+  current = 0; score = 0; hintUsed = false;
+  document.getElementById("hintBtn").disabled = false;
+  showQuestion();
+}
+
+function showQuestion() {
+  let q = questions[current];
+  document.getElementById("progress").textContent = `Question ${current+1} of ${questions.length}`;
+  let display;
+  if (settings.mode === "subject") {
+    display = `${pronouns[q.person]} _____ (${q.verb})`;
+  } else {
+    display = `Yo quiero ${q.verb} todos los días → Yo _____ todos los días.`;
+  }
+  document.getElementById("question").textContent = display;
+  document.getElementById("answer").value = "";
+  document.getElementById("feedback").textContent = "";
+}
+
+function checkAnswer() {
+  let q = questions[current];
+  let ans = document.getElementById("answer").value.trim().toLowerCase();
+  let correct = conjugations[settings.tense][q.verb][q.person];
+  if (ans === correct) {
+    document.getElementById("feedback").textContent = "✅ Correct!";
+    document.getElementById("feedback").className = "correct";
+    score++;
+    current++;
+    if (current < questions.length) {
+      setTimeout(showQuestion, 800);
+    } else {
+      endGame();
+    }
+  } else {
+    document.getElementById("feedback").textContent = "❌ Try again!";
+    document.getElementById("feedback").className = "incorrect";
+  }
+}
+
+function getHint() {
+  if (hintUsed) return;
+  let q = questions[current];
+  let correct = conjugations[settings.tense][q.verb][q.person];
+  document.getElementById("feedback").textContent = `Hint: starts with "${correct[0]}" and ends with "${correct.slice(-1)}"`;
+  hintUsed = true;
+  document.getElementById("hintBtn").disabled = true;
+}
+
+function endGame() {
+  document.getElementById("game").style.display = "none";
+  document.getElementById("end").style.display = "block";
+  document.getElementById("score").textContent = `You got ${score} out of ${questions.length} correct!`;
+}
+
+function restart() {
+  document.getElementById("end").style.display = "none";
+  document.getElementById("setup").style.display = "block";
+}
+</script>
+
+</body>
+</html>
